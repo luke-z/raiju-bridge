@@ -1,0 +1,2 @@
+# Rust's maintainability metric: branches plus nesting, capped per function.
+cognitive-complexity-threshold = 20

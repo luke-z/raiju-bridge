@@ -1,0 +1,47 @@
+[package]
+name = "raiju-bridge"
+version = "0.3.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+description = "Local Raiju to virtual DualSense bridge with measured input latency"
+repository = "https://github.com/luke-z/raiju-bridge"
+
+[lints.clippy]
+cognitive_complexity = "deny"
+
+
+[lib]
+name = "raiju_bridge"
+
+[patch.crates-io]
+# Generated from a checksum-verified upstream crate by scripts/bootstrap.py.
+gpui = { path = ".build/gpui" }
+
+[build-dependencies]
+embed-resource = "=3.0.11"
+
+[[bin]]
+name = "raiju-bridge"
+path = "src/main.rs"
+
+[[bin]]
+name = "raiju-bridge-cli"
+path = "src/bin/cli.rs"
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+gpui = { version = "=0.2.2", default-features = false, features = ["windows-manifest"] }
+hidapi = { version = "=2.6.7", default-features = false, features = ["windows-native"] }
+libloading = "0.8"
+tray-icon = { version = "=0.26.0", default-features = false }
+raw-window-handle = "0.6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading", "Win32_System_IO", "Win32_System_Registry", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input", "Win32_Graphics_Gdi", "Win32_Storage_FileSystem"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"
