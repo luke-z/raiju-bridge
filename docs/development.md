@@ -15,7 +15,7 @@ The executables are in `target/release`. Obtain `libVIIPER.dll` from the pinned 
 
 ## Ubuntu → Windows x64
 
-The checked-in workflow uses LLVM, `cargo-xwin` and Wine. FXC is Microsoft's shader compiler from a checksum-verified Windows SDK package. Wine runs FXC and the Windows unit tests; Rust and C/C++ compilation run on Linux. All jobs use `ubuntu-latest`.
+The checked-in workflow runs only when a `vX.X.X` tag is pushed (for example, `v0.3.0`). It uses LLVM, `cargo-xwin` and Wine. FXC is Microsoft's shader compiler from a checksum-verified Windows SDK package. Wine runs FXC and the Windows unit tests; Rust and C/C++ compilation run on Linux. All jobs use `ubuntu-latest`.
 
 ```sh
 python3 scripts/bootstrap.py

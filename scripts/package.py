@@ -67,6 +67,8 @@ def main():
             bundle.writestr("libVIIPER.dll", backend.read(names[0]))
         for name in ["README.md", "LICENSE", "THIRD_PARTY.md"]:
             bundle.write(ROOT / name, name)
+        for name in ["compact.jpg", "diagnostics.jpg"]:
+            bundle.write(ROOT / "docs/images" / name, f"docs/images/{name}")
         bundle.writestr("source/VIIPER-v0.8.2.zip", backend_source)
         # Use tracked files only: no build caches, captures, machine paths or logs.
         files = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT).decode().split("\0")
