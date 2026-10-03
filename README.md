@@ -1,6 +1,8 @@
 # Raiju Bridge
 
-Turn a Razer Raiju V3 Pro into a virtual DualSense on Windows. Use PC or PS5 mode, with a native Rust/GPUI app, Start/Stop, a tray icon, optional startup, and live button, stick and touchpad diagnostics.
+The Razer Raiju V3 Pro is detected as an Xbox controller in PC mode, so games show Xbox button prompts. Raiju Bridge translates its input into a virtual DualSense, enabling PlayStation button prompts in supported games.
+
+Use PC or PS5 mode with a native Rust/GPUI app, Start/Stop, a tray icon, optional startup, and live button, stick and touchpad diagnostics.
 
 <table>
   <tr><th>Compact</th><th>Diagnostics</th></tr>
