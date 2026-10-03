@@ -25,21 +25,12 @@ pub fn data_root() -> PathBuf {
         })
         .join("RaijuBridge")
 }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
     pub auto_connect: bool,
     pub diagnostics: bool,
     pub precise_pc: bool,
-}
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            auto_connect: false,
-            diagnostics: false,
-            precise_pc: true,
-        }
-    }
 }
 impl Settings {
     pub fn load() -> Result<Self> {
@@ -208,7 +199,9 @@ mod tests {
             "\"C:\\Some Folder\\bridge.exe\" --background"
         );
         let settings: Settings = serde_json::from_str("{}").unwrap();
-        assert!(!settings.auto_connect && !settings.diagnostics);
+        assert!(!settings.auto_connect && !settings.diagnostics && !settings.precise_pc);
+        let saved: Settings = serde_json::from_str(r#"{"precise_pc":true}"#).unwrap();
+        assert!(saved.precise_pc);
         assert!(startup_command(Path::new("C:\\bad\"path.exe")).is_err());
     }
 }

@@ -1,6 +1,8 @@
 #![windows_subsystem = "windows"]
+mod controller;
 mod panel;
 mod tray;
+mod view;
 use gpui::{
     App, Application, Bounds, Context, FocusHandle, FontWeight, KeyDownEvent, SharedString,
     TitlebarOptions, Window, WindowBounds, WindowOptions, div, prelude::*, px, rgb, size,
@@ -16,12 +18,13 @@ use std::{collections::VecDeque, io::Write, time::Duration};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     SW_HIDE, SW_RESTORE, SetForegroundWindow, ShowWindow,
 };
-const INK: u32 = 0x11191b;
-const PANEL: u32 = 0x1b2527;
-const LINE: u32 = 0x344143;
-const TEXT: u32 = 0xe7f0ed;
-const MUTED: u32 = 0x9babaa;
-const ACCENT: u32 = 0xd9f27e;
+const INK: u32 = 0x0d0f10;
+const PANEL: u32 = 0x1c1f22;
+const LINE: u32 = 0x292d31;
+const TEXT: u32 = 0xecedef;
+const MUTED: u32 = 0x9399a2;
+const ACCENT: u32 = 0x38d98a;
+const ERROR: u32 = 0xf19b91;
 
 fn visibility(window: &Window, show: bool) {
     if let Ok(handle) = HasWindowHandle::window_handle(window)
@@ -70,6 +73,7 @@ impl BridgeUi {
         instance: AppInstance,
         background: bool,
     ) -> Self {
+        view::style_titlebar(window);
         let loaded = Settings::load();
         let load_error = loaded.as_ref().err().map(|e| format!("{e:#}"));
         let settings = loaded.unwrap_or_default();
@@ -401,293 +405,7 @@ impl BridgeUi {
         }
     }
 }
-fn label(text: impl Into<SharedString>) -> gpui::Div {
-    div()
-        .text_size(px(11.0))
-        .line_height(px(15.0))
-        .font_family("Cascadia Mono")
-        .text_color(rgb(MUTED))
-        .child(text.into())
-}
-fn button(
-    id: &'static str,
-    text: &'static str,
-    primary: bool,
-    enabled: bool,
-) -> gpui::Stateful<gpui::Div> {
-    div()
-        .id(id)
-        .px_4()
-        .py_3()
-        .rounded_md()
-        .bg(rgb(if primary { ACCENT } else { PANEL }))
-        .border_1()
-        .border_color(rgb(if primary { ACCENT } else { LINE }))
-        .text_color(rgb(if primary { INK } else { TEXT }))
-        .font_weight(FontWeight::SEMIBOLD)
-        .when(enabled, |s| {
-            s.cursor_pointer()
-                .hover(|s| s.bg(rgb(if primary { 0xe8ffa0 } else { 0x304143 })))
-        })
-        .when(!enabled, |s| s.opacity(0.4))
-        .child(text)
-}
-fn switch(id: &'static str, title: &'static str, on: bool) -> gpui::Stateful<gpui::Div> {
-    div()
-        .id(id)
-        .flex()
-        .items_center()
-        .gap_3()
-        .cursor_pointer()
-        .py_2()
-        .child(
-            div()
-                .w(px(32.0))
-                .h(px(18.0))
-                .rounded_full()
-                .bg(rgb(if on { ACCENT } else { LINE }))
-                .p(px(3.0))
-                .flex()
-                .when(on, |s| s.justify_end())
-                .child(
-                    div()
-                        .size(px(12.0))
-                        .rounded_full()
-                        .bg(rgb(if on { INK } else { MUTED })),
-                ),
-        )
-        .child(title)
-}
-fn metric(title: &'static str, value: Option<f64>) -> gpui::Div {
-    div()
-        .flex_1()
-        .flex()
-        .flex_col()
-        .gap_1()
-        .child(label(title))
-        .child(
-            div()
-                .text_size(px(22.0))
-                .font_family("Cascadia Mono")
-                .child(value.map(|v| format!("{v:.3}")).unwrap_or("—".into())),
-        )
-}
-impl Render for BridgeUi {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let running = self.worker.is_some();
-        let diag = self.settings.diagnostics;
-        div()
-            .id("root")
-            .track_focus(&self.focus)
-            .size_full()
-            .overflow_y_scroll()
-            .bg(rgb(INK))
-            .text_color(rgb(TEXT))
-            .font_family("Bahnschrift")
-            .text_size(px(14.0))
-            .p_6()
-            .flex()
-            .flex_col()
-            .gap_4()
-            .when(diag, |s| s.p_5().gap_3())
-            .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
-                let key = event.keystroke.key.as_str();
-                if event.keystroke.modifiers.control && key == "d" {
-                    this.diagnostics(window, cx);
-                } else if event.keystroke.modifiers.control && key == "q" {
-                    this.quit(cx);
-                } else if key == "space" || key == "enter" {
-                    this.toggle(cx);
-                }
-            }))
-            .child(
-                div()
-                    .flex()
-                    .justify_between()
-                    .items_center()
-                    .child(label("RAIJU BRIDGE"))
-                    .child(
-                        div()
-                            .id("hide")
-                            .text_size(px(12.0))
-                            .text_color(rgb(MUTED))
-                            .cursor_pointer()
-                            .child(if self.tray.is_some() {
-                                "Hide to tray ↘"
-                            } else {
-                                "Quit"
-                            })
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                if this.tray.is_some() {
-                                    visibility(window, false);
-                                } else {
-                                    this.quit(cx);
-                                }
-                            })),
-                    ),
-            )
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap_2()
-                    .py_2()
-                    .when(diag, |s| {
-                        s.flex_row().items_center().justify_between().py_0()
-                    })
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_3()
-                            .child(div().size(px(8.0)).rounded_full().bg(rgb(if self.failed {
-                                0xffac8c
-                            } else if running {
-                                ACCENT
-                            } else {
-                                MUTED
-                            })))
-                            .child(
-                                div()
-                                    .text_size(px(if diag { 22.0 } else { 30.0 }))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .child(if self.failed {
-                                        "Needs attention"
-                                    } else if self.stopping {
-                                        "Stopping"
-                                    } else if self.mode.is_some_and(|m| m != Mode::Bridge) {
-                                        "Testing your controller"
-                                    } else if self.hz > 0.0 {
-                                        "Connected"
-                                    } else if running {
-                                        "Waiting for controller"
-                                    } else {
-                                        "Ready when you are"
-                                    }),
-                            ),
-                    )
-                    .child(div().text_color(rgb(MUTED)).child(self.status.clone())),
-            )
-            .child(
-                button(
-                    "main-toggle",
-                    if running {
-                        if self.stopping { "Stopping…" } else { "Stop" }
-                    } else {
-                        "Start bridge"
-                    },
-                    true,
-                    !self.stopping,
-                )
-                .flex()
-                .justify_center()
-                .when(diag, |s| s.py_2())
-                .on_click(cx.listener(|this, _, _, cx| {
-                    if !this.stopping {
-                        this.toggle(cx);
-                    }
-                })),
-            )
-            .when(!diag, |root| {
-                root.child(
-                    div()
-                        .text_size(px(12.0))
-                        .text_color(rgb(MUTED))
-                        .child("PC or PS5 mode → virtual DualSense · Steam Input off"),
-                )
-            })
-            .child(
-                div()
-                    .border_y_1()
-                    .border_color(rgb(LINE))
-                    .py_2()
-                    .flex()
-                    .justify_between()
-                    .items_center()
-                    .child(
-                        switch("diagnostics", "Show diagnostics", diag).on_click(
-                            cx.listener(|this, _, window, cx| this.diagnostics(window, cx)),
-                        ),
-                    )
-                    .child(label(if diag && running {
-                        if self.pc_mode {
-                            format!("{:.0} polls/s · {:.0} new states/s", self.hz, self.fresh_hz)
-                        } else {
-                            format!("{:.0} reports/s", self.hz)
-                        }
-                    } else {
-                        "".into()
-                    })),
-            )
-            .when(diag, |root| root.child(self.diagnostic_panel(cx)))
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .when(diag, |s| s.flex_row().gap_5())
-                    .child(
-                        switch("startup", "Launch at Windows sign-in", self.startup).on_click(
-                            cx.listener(|this, _, _, cx| {
-                                let enabled = !this.startup;
-                                match desktop::set_startup(enabled) {
-                                    Ok(()) => {
-                                        this.startup = enabled;
-                                        this.log(
-                                            if enabled {
-                                                "Windows startup enabled"
-                                            } else {
-                                                "Windows startup disabled"
-                                            }
-                                            .into(),
-                                        );
-                                    }
-                                    Err(e) => {
-                                        this.error(format!("Could not change startup: {e:#}"))
-                                    }
-                                }
-                                cx.notify();
-                            }),
-                        ),
-                    )
-                    .child(
-                        switch(
-                            "auto-connect",
-                            "Connect automatically when the app opens",
-                            self.settings.auto_connect,
-                        )
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.settings.auto_connect = !this.settings.auto_connect;
-                            if let Err(e) = this.settings.save() {
-                                this.settings.auto_connect = !this.settings.auto_connect;
-                                this.error(format!("Could not save settings: {e:#}"));
-                            }
-                            cx.notify();
-                        })),
-                    ),
-            )
-            .child(div().flex_1())
-            .child(
-                div()
-                    .flex()
-                    .justify_between()
-                    .gap_3()
-                    .text_size(px(11.0))
-                    .text_color(rgb(MUTED))
-                    .child(if self.tray.is_some() {
-                        "Closing this window keeps the bridge in the tray."
-                    } else {
-                        "Tray unavailable. Closing the window stops the bridge."
-                    })
-                    .child(
-                        div()
-                            .id("quit")
-                            .cursor_pointer()
-                            .child("Quit")
-                            .on_click(cx.listener(|this, _, _, cx| this.quit(cx))),
-                    ),
-            )
-    }
-}
+
 fn main() {
     if raiju_bridge::touchpad::watchdog_entry() {
         return;
@@ -717,7 +435,7 @@ fn main() {
         let result = cx.open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
-                window_min_size: Some(size(px(540.0), px(530.0))),
+                window_min_size: Some(size(px(580.0), px(530.0))),
                 show: !background,
                 focus: !background,
                 titlebar: Some(TitlebarOptions {
