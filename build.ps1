@@ -15,4 +15,4 @@ cargo test --locked --release --lib
 if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
 cargo build --locked --release --bins
 if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
-Write-Host 'Binaries are in target\release. Put the supplied libVIIPER.dll beside them before running.'
+Write-Host 'Binaries are in target\release. Run python scripts/build_backend.py to build the compatible DLL (see docs/development.md).'

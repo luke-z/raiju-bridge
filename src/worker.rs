@@ -218,7 +218,7 @@ fn run_bridge(
     cancel::check(&stop)?;
     let virtual_input = native::wait_for_virtual(&previous, &stop)?;
     let virtual_path = virtual_input.get_device_info()?.path().to_owned();
-    input.begin_forwarding();
+    input.begin_forwarding()?;
     cancel::check(&stop)?;
     let origin = Instant::now();
     let buttons = Arc::new(Mutex::new(ButtonMonitor::new(origin)));
@@ -406,6 +406,7 @@ fn run_bridge(
         }
         Ok(())
     })();
+    let restored = input.finish_forwarding();
     for reader in retiring {
         live_result = Some(Box::new(reader.finish()));
     }
@@ -418,6 +419,7 @@ fn run_bridge(
     {
         bail!("Diagnostic observer stopped unexpectedly");
     }
+    restored?;
     let mut report = SessionReport {
         diagnostics: live_result,
         ..Default::default()

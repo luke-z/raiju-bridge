@@ -101,6 +101,7 @@ pub fn translate(p: Gamepad) -> PadState {
 }
 pub struct PcInput {
     touchpad: crate::touchpad::Touchpad,
+    hiding: Option<Box<crate::hiding::Guard>>,
     precise: bool,
     _library: Library,
     get: GetState,
@@ -114,6 +115,7 @@ pub struct PcInput {
 }
 impl PcInput {
     fn open() -> Result<Self> {
+        let expected_pid = crate::hiding::prepare()?;
         // Resolve only Microsoft's system copy. The optional ordinals match the
         // ABI used by SDL's Windows backend; identification is mandatory.
         let library = unsafe { Library::load_with_flags("xinput1_4.dll", 0x800) }?;
@@ -144,6 +146,9 @@ impl PcInput {
         if found.len() != 1 {
             bail!("Connect only one Raiju for this bridge");
         }
+        if found[0].1 != expected_pid {
+            bail!("Raiju changed during discovery; retry Start");
+        }
         let touchpad = crate::touchpad::Touchpad::open(found[0].1)?;
         let timer = unsafe {
             CreateWaitableTimerExW(
@@ -158,6 +163,7 @@ impl PcInput {
         }
         Ok(Self {
             touchpad,
+            hiding: None,
             precise: crate::desktop::Settings::load()
                 .unwrap_or_default()
                 .precise_pc,
@@ -198,6 +204,9 @@ impl PcInput {
         };
         if now.duration_since(self.identity_check) > Duration::from_secs(1) {
             self.touchpad.check()?;
+            if let Some(guard) = &mut self.hiding {
+                guard.check()?;
+            }
             let mut c = CapsEx::default();
             if unsafe { (self.caps)(1, self.slot, 0, &mut c) } != 0
                 || c.vid != 0x1532
@@ -248,10 +257,26 @@ pub enum Source {
     Pc(PcInput),
 }
 impl Source {
-    pub fn begin_forwarding(&mut self) {
+    pub fn begin_forwarding(&mut self) -> Result<()> {
         if let Self::Pc(input) = self {
+            input.hiding = Some(Box::new(crate::hiding::Guard::start(input.pid)?));
+            let mut state = State::default();
+            if unsafe { (input.get)(input.slot, &mut state) } != 0 {
+                bail!(
+                    "HidHide cannot allow this running process. Quit and reopen the bridge after installing the driver, then retry Start."
+                );
+            }
             input.touchpad.begin_forwarding();
         }
+        Ok(())
+    }
+    pub fn finish_forwarding(&mut self) -> Result<()> {
+        if let Self::Pc(input) = self
+            && let Some(mut guard) = input.hiding.take()
+        {
+            guard.finish()?;
+        }
+        Ok(())
     }
     pub fn set_precise(&mut self, precise: bool) {
         if let Self::Pc(input) = self {

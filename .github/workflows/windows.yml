@@ -28,10 +28,14 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.13'
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          cache: false
       - name: Install cross-compilation tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang llvm lld cmake ninja-build wine wine64 xvfb xauth pkg-config
+          sudo apt-get install -y --no-install-recommends clang llvm lld cmake ninja-build wine wine64 xvfb xauth pkg-config gcc-mingw-w64-x86-64
           python -m pip install cargo-xwin==0.23.1
       - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067
         with:
@@ -44,10 +48,12 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cache/cargo-xwin
+            ~/go/pkg/mod
+            ~/.cache/go-build
             .build/fxc
             .build/gpui
             target
-          key: windows-x64-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'scripts/bootstrap.py', 'scripts/setup_fxc.py', '.cargo/config.toml') }}
+          key: windows-x64-v2-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'scripts/bootstrap.py', 'scripts/setup_fxc.py', 'scripts/build_backend.py', '.cargo/config.toml') }}
       - name: Prepare GPUI and shader compiler
         run: |
           python scripts/bootstrap.py
@@ -63,7 +69,7 @@ jobs:
         run: xvfb-run -a cargo xwin test --locked --release --lib --target x86_64-pc-windows-msvc
       - name: Build Windows executables
         run: xvfb-run -a cargo xwin build --locked --release --bins --target x86_64-pc-windows-msvc
-      - name: Package binaries, licenses and sources
+      - name: Build patched backend and package binaries, licenses and sources
         run: python scripts/package.py target/x86_64-pc-windows-msvc/release
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

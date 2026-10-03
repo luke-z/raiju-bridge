@@ -116,6 +116,7 @@ pub struct VirtualPad {
     server: usize,
     device: usize,
     bus: u32,
+    previous_paths: HashSet<Vec<u8>>,
 }
 impl VirtualPad {
     pub fn attach(flush_interval: u32, stop: &AtomicBool) -> Result<Self> {
@@ -125,6 +126,7 @@ impl VirtualPad {
             server: 0,
             device: 0,
             bus: 0,
+            previous_paths: sony_paths()?,
         };
         let address = CString::new("localhost:0")?;
         let config = ServerConfig {
@@ -174,6 +176,8 @@ impl VirtualPad {
 }
 impl Drop for VirtualPad {
     fn drop(&mut self) {
+        let current = sony_paths().unwrap_or_default();
+        let removing: HashSet<_> = current.difference(&self.previous_paths).cloned().collect();
         unsafe {
             if self.device != 0 {
                 (self.api.set_state)(self.device, PadState::default());
@@ -188,6 +192,15 @@ impl Drop for VirtualPad {
                 }
                 (self.api.close)(self.server);
             }
+        }
+        // PnP removal is asynchronous. A new session can reuse the same HID
+        // path; don't let its discovery snapshot mistake that path for an old pad.
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while !removing.is_empty() && Instant::now() < deadline {
+            if sony_paths().is_ok_and(|paths| paths.is_disjoint(&removing)) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
         }
     }
 }
@@ -259,6 +272,7 @@ pub fn wait_for_virtual(previous: &HashSet<Vec<u8>>, stop: &AtomicBool) -> Resul
             if candidates.next().is_some() {
                 bail!("More than one new DualSense appeared; cannot identify this session safely.");
             }
+            crate::compatibility::check(info.path())?;
             return info.open_device(&api).map_err(Into::into);
         }
         crate::cancel::pause(stop, Duration::from_millis(100))?;

@@ -407,6 +407,9 @@ impl BridgeUi {
 }
 
 fn main() {
+    if raiju_bridge::hiding::watchdog_entry() {
+        return;
+    }
     if raiju_bridge::touchpad::watchdog_entry() {
         return;
     }

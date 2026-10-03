@@ -11,11 +11,23 @@ python scripts/bootstrap.py
 ./build.ps1
 ```
 
-The executables are in `target/release`. Obtain `libVIIPER.dll` from the pinned [VIIPER v0.8.2 Windows amd64 library](https://github.com/Alia5/VIIPER/releases/tag/v0.8.2), or run the packaging script described below. The GUI needs the DLL beside it at runtime; unit tests do not need a controller or driver.
+The executables are in `target/release`. Build the compatible `libVIIPER.dll` with Go and a C compiler, for example [Zig 0.14.1](https://ziglang.org/download/):
+
+```powershell
+$env:CC = 'C:\tools\zig\zig.exe cc -target x86_64-windows-gnu'
+python scripts/build_backend.py
+python scripts/package.py target/release
+```
+
+The builder selects Go 1.27.1 (downloaded automatically by Go if needed). `package.py` rebuilds the backend and writes the portable ZIP and checksum to `dist/`. The GUI needs the DLL beside it at runtime; unit tests do not need a controller or driver. Go and Zig are build dependencies only.
+
+Use this builder rather than the upstream prebuilt VIIPER DLL. The pinned v0.8.2 descriptor advertises a 64-byte DualSense output report, while the [physical USB descriptor](https://github.com/nondebug/dualsense/blob/main/report-descriptor-usb.txt) declares 48 bytes including report ID 0x02. Native games can reject the incorrect size even though diagnostics read input successfully. The builder verifies the original source archive and patches only that report count from 63 to 47. Input and feature report capacities remain 64 bytes. The portable ZIP includes the original VIIPER source and this reproducible patch/build script.
+
+After attachment, the app checks the input/output report lengths through Windows HID before reporting a usable controller. An incompatible DLL produces a replacement instruction and the virtual device is removed during cleanup.
 
 ## Ubuntu → Windows x64
 
-The checked-in workflow runs only when a `vX.X.X` tag is pushed (for example, `v0.3.0`). It uses LLVM, `cargo-xwin` and Wine. FXC is Microsoft's shader compiler from a checksum-verified Windows SDK package. Wine runs FXC and the Windows unit tests; Rust and C/C++ compilation run on Linux. All jobs use `ubuntu-latest`.
+The checked-in workflow runs only when a `vX.X.X` tag is pushed (for example, `v0.3.0`). It uses LLVM, `cargo-xwin`, Wine, Go 1.27.1 and `gcc-mingw-w64-x86-64`. FXC is Microsoft's shader compiler from a checksum-verified Windows SDK package. Wine runs FXC and the Windows unit tests; Rust and C/C++ compilation run on Linux. The backend builder defaults to `x86_64-w64-mingw32-gcc` on Linux. All jobs use `ubuntu-latest`.
 
 ```sh
 python3 scripts/bootstrap.py
@@ -48,6 +60,8 @@ Clippy's `cognitive_complexity` is denied above **20** in `clippy.toml`. Unlike 
 
 Stop the GUI before using the CLI. Synthetic tests generate controller input, so close games first.
 
+PC mode requires the installed HidHide driver. The GUI and CLI register their own executable path through its public API before reading XInput. If the driver was installed while the app was running, reopen the app so HidHide can identify the new process.
+
 ```powershell
 raiju-bridge-cli.exe --probe
 raiju-bridge-cli.exe --input-rate 10 rate.json
@@ -59,11 +73,19 @@ raiju-bridge-cli.exe --diagnostics-test results/diagnostics
 
 Hardware tests are local; hosted CI only runs deterministic unit tests. Live diagnostics use a bounded observation queue, refresh the diagram about 60 times/second, and update latency statistics at most 10 times/second. Brief presses flash for 80 ms in the diagram; this does not hold game input. Diagnostics have measurable overhead and can be disabled without reconnecting.
 
+## PC gamepad visibility
+
+The source selects the current Raiju PC HID gamepad and XInput interface from Windows' present device IDs, including the current `IG_xx` slot. It never hides the USB composite parent, keyboard, mouse, touchpad, or Sony output. Hiding begins after virtual attachment and is restored on Stop, connection failure, or source loss. PS5 mode does not open HidHide.
+
+A separate child of the same executable owns the temporary blocklist additions and restores them when its parent pipe closes. A locked, flushed `hidhide-session.json` recovery record retains only the rules added by this session and whether it enabled hiding. The parent detects a failed helper; the next PC connection recovers a stale record after an interrupted cleanup or restart. Existing hidden devices and application allowlist entries are preserved. The app refuses inverse allowlist mode or activating disabled rules for unrelated devices. HidHide's control device is exclusive, so close its configuration client before Start or Stop. If it blocks cleanup, the helper keeps retrying and the app reports the delay.
+
+Games that opened the physical device before hiding may retain access until restarted. Start the bridge before launching the game. Keep synthetic hardware tests outside games.
+
 ## PC touchpad
 
 Raw Input reads only the Raiju Precision Touchpad collection. Its firmware emits a 1920 × 1080 grid despite the larger range advertised by its HID descriptor. Preserve those coordinates and up to two contacts, retaining finger slots across report reordering. Touch changes are forwarded independently of XInput packet changes.
 
-Windows' `SPI_SETTOUCHPADPARAMETERS` cursor policy is global. The bridge therefore requires the Raiju to be the sole Precision Touchpad and an external mouse to be present. A separate helper temporarily changes only `allowActiveWhenMousePresent`; EOF on its parent pipe restores the original value even if the parent crashes. It checks the environment every second and stops if another touchpad appears or the mouse disappears. Stop restores the preference without disabling or rebinding any physical device. This does not hide the physical Xbox interface.
+Windows' `SPI_SETTOUCHPADPARAMETERS` cursor policy is global. The bridge therefore requires the Raiju to be the sole Precision Touchpad and an external mouse to be present. A separate helper temporarily changes only `allowActiveWhenMousePresent`; EOF on its parent pipe restores the original value even if the parent crashes. It checks the environment every second and stops if another touchpad appears or the mouse disappears. Stop restores the preference without disabling or rebinding any physical device. HidHide manages Xbox gamepad visibility separately.
 
 The touchpad diagram is schematic, with a wider top. Its projection affects only the display, not forwarded coordinates. The Sony output reader uses the standard report layout; the Raiju PS5 input parser uses the third-party layout.
 

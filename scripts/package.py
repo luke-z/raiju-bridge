@@ -1,6 +1,5 @@
 """Build a portable Windows ZIP with pinned runtime and corresponding sources."""
 import hashlib
-import io
 import json
 import os
 from pathlib import Path
@@ -8,10 +7,7 @@ import subprocess
 import sys
 import zipfile
 from bootstrap import ROOT, GPUI_SHA256, download
-
-BACKEND = "3111299d67bacbaa7f6a31d56ea9ae06678f5865"
-DLL_SHA256 = "e295d105f4e69f5c9630b7fed335a98bd7091d5bddcc93551be1aafa44e29242"
-SOURCE_SHA256 = "fc288cfc05f7611cae2d3063e8d8d9b6b98e1699c755a4766bc725d49228f8d4"
+from build_backend import build as build_backend
 
 
 def dependency_sources(bundle):
@@ -50,21 +46,15 @@ def main():
     for name in ["raiju-bridge.exe", "raiju-bridge-cli.exe"]:
         if not (binary_dir / name).is_file():
             raise RuntimeError(f"Build first: {binary_dir / name}")
-    dll_archive = download(
-        "https://github.com/Alia5/VIIPER/releases/download/v0.8.2/viiper-libVIIPER-windows-amd64.zip", DLL_SHA256,
-    )
-    backend_source = download(f"https://codeload.github.com/Alia5/VIIPER/zip/{BACKEND}", SOURCE_SHA256)
+    # Always rebuild from the verified source and patch; never package an older
+    # upstream DLL that would silently restore the incompatible descriptor.
+    backend_source = build_backend(binary_dir)
     destination = ROOT / "dist"
     destination.mkdir(exist_ok=True)
     output = destination / "raiju-bridge-windows-x64.zip"
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
-        for name in ["raiju-bridge.exe", "raiju-bridge-cli.exe"]:
+        for name in ["raiju-bridge.exe", "raiju-bridge-cli.exe", "libVIIPER.dll"]:
             bundle.write(binary_dir / name, name)
-        with zipfile.ZipFile(io.BytesIO(dll_archive)) as backend:
-            names = [name for name in backend.namelist() if Path(name).name == "libVIIPER.dll"]
-            if len(names) != 1:
-                raise RuntimeError("Unexpected VIIPER library archive")
-            bundle.writestr("libVIIPER.dll", backend.read(names[0]))
         for name in ["README.md", "LICENSE", "THIRD_PARTY.md"]:
             bundle.write(ROOT / name, name)
         for name in ["compact.jpg", "diagnostics.jpg"]:
@@ -78,7 +68,7 @@ def main():
             bundle.write(ROOT / name, f"source/raiju-bridge/{name}")
         dependency_sources(bundle)
     digest = hashlib.sha256(output.read_bytes()).hexdigest()
-    (destination / "SHA256SUMS.txt").write_text(f"{digest}  {output.name}\n", encoding="utf-8")
+    (destination / "SHA256SUMS.txt").write_text(f"{digest}  {output.name}\n", encoding="utf-8", newline="\n")
     print(output)
 
 

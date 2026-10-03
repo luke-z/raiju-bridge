@@ -1,7 +1,9 @@
 pub mod accuracy;
 pub mod cancel;
+mod compatibility;
 pub mod desktop;
 pub mod diagnostics;
+pub mod hiding;
 pub mod input;
 pub mod measure;
 pub mod native;
