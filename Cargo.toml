@@ -1,6 +1,6 @@
 [package]
 name = "raiju-bridge"
-version = "0.3.0"
+version = "0.0.1"
 edition = "2024"
 license = "GPL-3.0-or-later"
 description = "Local Raiju to virtual DualSense bridge with measured input latency"

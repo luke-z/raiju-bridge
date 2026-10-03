@@ -27,7 +27,7 @@ After attachment, the app checks the input/output report lengths through Windows
 
 ## Ubuntu → Windows x64
 
-The checked-in workflow runs only when a `vX.X.X` tag is pushed (for example, `v0.3.0`). It uses LLVM, `cargo-xwin`, Wine, Go 1.27.1 and `gcc-mingw-w64-x86-64`. FXC is Microsoft's shader compiler from a checksum-verified Windows SDK package. Wine runs FXC and the Windows unit tests; Rust and C/C++ compilation run on Linux. The backend builder defaults to `x86_64-w64-mingw32-gcc` on Linux. All jobs use `ubuntu-latest`.
+The checked-in workflow runs only when a `vX.X.X` tag is pushed (for example, `v0.0.1`). It uses LLVM, `cargo-xwin`, Wine, Go 1.27.1 and `gcc-mingw-w64-x86-64`. FXC is Microsoft's shader compiler from a checksum-verified Windows SDK package. Wine runs FXC and the Windows unit tests; Rust and C/C++ compilation run on Linux. The backend builder defaults to `x86_64-w64-mingw32-gcc` on Linux. All jobs use `ubuntu-latest`.
 
 ```sh
 python3 scripts/bootstrap.py
