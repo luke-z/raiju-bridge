@@ -30,7 +30,7 @@ cargo xwin build --locked --release --bins --target x86_64-pc-windows-msvc
 python3 scripts/package.py target/x86_64-pc-windows-msvc/release
 ```
 
-GPUI 0.2.2 gates its Windows shader/manifest build on the **host** OS. `bootstrap.py` extracts the exact crate into ignored `.build/gpui` and applies three small build-only changes: enable that code on Linux and make its resource-compiler dependency available there. Runtime GPUI code is unchanged. The source checksum and patch preconditions are checked. Nothing is modified in the global Cargo cache. Revisit this patch when updating GPUI.
+GPUI 0.2.2 gates its Windows shader/manifest build on the **host** OS. `bootstrap.py` extracts the exact crate into ignored `.build/gpui`, enables that code on Linux, makes its resource-compiler dependency available, and resolves the manifest resource to an absolute path for LLVM. Runtime GPUI code is unchanged. The source checksum and patch preconditions are checked. Nothing is modified in the global Cargo cache. Revisit this patch when updating GPUI.
 
 `+crt-static` avoids requiring a separate Visual C++ runtime install. Build downloads and generated sources stay in `.build/` and `target/`; binaries and test captures are never committed.
 
