@@ -31,6 +31,8 @@ HidHide prevents games from also receiving the physical Xbox input, which can ca
 
 In our resting captures, the Raiju's PC-mode XInput axes stayed exactly at `0` on a signed `-32768` to `32767` scale. The bridge maps that center to `128` on the DualSense's `0` to `255` scale. Both can represent neutral input: the signed range alone does not guarantee drift-free input, and the unsigned format does not inherently require a deadzone.
 
-If the game cursor creeps at a `0.00` deadzone, try `0.01` (1%). This stopped the observed creep in both bridge modes despite steady resting values. The exact cause remains unconfirmed; a game interpreting `128` relative to a midpoint of `127.5` is only a hypothesis. The bridge adds no stick deadzone or response curve. A game deadzone filters small center inputs; it adds no timed processing delay.
+In a controlled menu comparison at `0.00` deadzone, steady virtual DualSense values of `128` moved the cursor down-right; changing them to `127` moved it up-left. With the bridge stopped, the same Raiju stayed still through XInput. This strongly supports a game neutral point between the two DualSense values, consistent with `127.5`, although the game's exact calculation is unverified. Simply shifting the bridge's center to `127` reverses the creep instead of fixing it.
+
+If you encounter this, try `0.01` (1%) deadzone in the game. It stopped the observed creep in both bridge modes. The bridge adds no stick deadzone or response curve. A game deadzone ignores small movements near center; it adds no timed processing delay.
 
 [GPL-3.0-or-later](LICENSE). Uses [VIIPER](https://github.com/Alia5/VIIPER) over localhost USB/IP. No firmware changes or cloud service.
