@@ -20,7 +20,7 @@ def download(url, sha256):
 
 def bootstrap():
     destination = ROOT / ".build" / "gpui"
-    marker = destination / ".raiju-cross-v1"
+    marker = destination / ".raiju-cross-v2"
     if marker.exists():
         return
     archive = download("https://static.crates.io/crates/gpui/gpui-0.2.2.crate", GPUI_SHA256)
@@ -53,6 +53,14 @@ def bootstrap():
     if text.count(before) != 1:
         raise RuntimeError("GPUI manifest changed; review the cross patch")
     manifest.write_text(text.replace(before, "[build-dependencies.embed-resource]"), encoding="utf-8", newline="\n")
+    # llvm-rc resolves file resources from the .rc directory, unlike native RC.
+    resource = destination / "resources/windows/gpui.rc"
+    text = resource.read_text(encoding="utf-8")
+    before = '"resources/windows/gpui.manifest.xml"'
+    if text.count(before) != 1:
+        raise RuntimeError("GPUI manifest resource changed; review the cross patch")
+    full_path = (destination / "resources/windows/gpui.manifest.xml").as_posix()
+    resource.write_text(text.replace(before, f'"{full_path}"'), encoding="utf-8", newline="\n")
     marker.write_text(GPUI_SHA256, encoding="utf-8")
 
 
