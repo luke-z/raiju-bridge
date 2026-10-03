@@ -15,7 +15,7 @@ Use PC or PS5 mode with a native Rust/GPUI app, Start/Stop, a tray icon, optiona
 ## Install
 
 1. Install the signed [USB/IP driver 0.9.8.1](https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.8.1) and restart if requested.
-2. Download the artifact from the latest successful [Windows build](https://github.com/luke-z/raiju-bridge/actions/workflows/windows.yml). Extract it and the ZIP inside it.
+2. Download `raiju-bridge-windows-x64.zip` from **Assets** on the latest [release](https://github.com/luke-z/raiju-bridge/releases) and extract it.
 3. Keep `libVIIPER.dll` beside `raiju-bridge.exe`. Connect one Raiju by USB, open the app, and click the **power button**.
 
 Fresh installs open in compact mode. Use **Diagnostics** or **Ctrl D** to expand the live controller view and measurements. Closing the window keeps the bridge in the tray; **Quit** stops it. Windows sign-in and automatic connection are separate settings.
