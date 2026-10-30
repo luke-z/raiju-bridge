@@ -1,0 +1,65 @@
+[Version]
+Signature="$Windows NT$"
+Class=System
+ClassGuid={4d36e97d-e325-11ce-bfc1-08002be10318}
+Provider=%Provider%
+CatalogFile=RaijuVhf.cat
+DriverVer=10/30/2026,0.1.0.2
+PnpLockdown=1
+
+[Manufacturer]
+%Provider%=Models,NTamd64.10.0...22621
+
+[Models.NTamd64.10.0...22621]
+%DeviceName%=Install,ROOT\RAIJUVHFPROTOTYPE
+
+[Install.NT]
+Include=WUDFRD.inf,hidvhf.inf
+Needs=WUDFRD_UpperFilter.NT,vhfservice.NT
+CopyFiles=DriverFiles
+
+[Install.NT.HW]
+Include=WUDFRD.inf,hidvhf.inf
+Needs=WUDFRD_UpperFilter.NT.HW,vhfservice.NT.HW
+AddReg=DeviceSecurity
+
+[Install.NT.Services]
+Include=WUDFRD.inf,hidvhf.inf
+Needs=WUDFRD_UpperFilter.NT.Services,vhfservice.NT.Services
+
+[Install.NT.Filters]
+Include=WUDFRD.inf
+Needs=WUDFRD_UpperFilter.NT.Filters
+
+[Install.NT.Wdf]
+UmdfService=RaijuVhf,DriverService
+UmdfServiceOrder=RaijuVhf
+UmdfImpersonationLevel=Impersonation
+UmdfKernelModeClientPolicy=AllowKernelModeClients
+UmdfFileObjectPolicy=AllowNullAndUnknownFileObjects
+UmdfFsContextUsePolicy=CannotUseFsContexts
+
+[DeviceSecurity]
+; Interactive users can forward input. The UMDF host SID needs the local target.
+HKR,,Security,,"D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GRGW;;;IU)(A;;GA;;;UD)"
+
+[DriverService]
+UmdfLibraryVersion=2.33.0
+ServiceBinary=%13%\RaijuVhf.dll
+
+[DriverFiles]
+RaijuVhf.dll
+
+[DestinationDirs]
+DefaultDestDir=13
+
+[SourceDisksNames]
+1=%DiskName%,,,
+
+[SourceDisksFiles]
+RaijuVhf.dll=1
+
+[Strings]
+Provider="Raiju Bridge Prototype"
+DeviceName="Raiju VHF Prototype (UMDF)"
+DiskName="Raiju VHF Prototype"

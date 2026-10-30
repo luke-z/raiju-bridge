@@ -1,0 +1,31 @@
+name: Native VHF tray
+
+on:
+  push:
+    paths:
+      - 'prototypes/vhf-dualsense/client/**'
+      - '.github/workflows/vhf-client.yml'
+  pull_request:
+    paths:
+      - 'prototypes/vhf-dualsense/client/**'
+      - '.github/workflows/vhf-client.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  client:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067
+        with:
+          toolchain: '1.99.0'
+          components: clippy, rustfmt
+      - name: Check formatting
+        run: cargo fmt --manifest-path prototypes/vhf-dualsense/client/Cargo.toml -- --check
+      - name: Lint native client
+        run: cargo clippy --locked --release --all-targets --manifest-path prototypes/vhf-dualsense/client/Cargo.toml -- -D warnings
+      - name: Test report translation and connection lifecycle
+        run: cargo test --locked --release --manifest-path prototypes/vhf-dualsense/client/Cargo.toml

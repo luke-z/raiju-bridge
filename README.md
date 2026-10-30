@@ -1,38 +1,97 @@
 # Raiju Bridge
 
-The Razer Raiju V3 Pro is detected as an Xbox controller in PC mode, so games show Xbox button prompts. Raiju Bridge translates its input into a virtual DualSense, enabling PlayStation button prompts in supported games.
+Use a Razer Raiju V3 Pro with PlayStation button prompts in Destiny 2 on Windows.
+The new native version is a small tray app and a UMDF/VHF virtual-controller
+driver. There is no settings window, console, GPUI, VIIPER, USB/IP or HidHide
+requirement for this workflow.
 
-Use PC or PS5 mode with a native Rust/GPUI app, Start/Stop, a tray icon, optional startup, and live button, stick and touchpad diagnostics.
+## Daily use
 
-<table>
-  <tr><th>Compact</th><th>Diagnostics</th></tr>
-  <tr>
-    <td valign="top"><img src="docs/images/compact.jpg" width="290" alt="Raiju Bridge compact view with one power button and startup settings"></td>
-    <td valign="top"><img src="docs/images/diagnostics.jpg" width="450" alt="Raiju Bridge diagnostics with a controller diagram, trigger bars and input measurements"></td>
-  </tr>
-</table>
+After the one-time driver installation:
 
-## Install
+1. Connect one Raiju by USB in **PS mode**.
+2. Disable **Steam Input for Destiny 2** so the game receives the virtual DualSense.
+3. Open `package/raiju-tray.exe`. Click its tray icon to toggle **Enabled** or **Quit**.
 
-1. Install the signed [USB/IP driver 0.9.8.1](https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.8.1) and restart if requested.
-2. Download `raiju-bridge-windows-x64.zip` from **Assets** on the latest [release](https://github.com/luke-z/raiju-bridge/releases) and extract it.
-3. **PC mode requires [HidHide](https://github.com/nefarius/HidHide/releases/tag/v1.5.230.0).** Install it, restart if requested, and reopen the bridge. **PS5 mode works without HidHide**; the USB/IP driver is required in both modes.
-4. Keep `libVIIPER.dll` beside `raiju-bridge.exe`. Connect one Raiju by USB, open the app, and click the **power button**.
+The app starts at login after installation and remembers the enable toggle.
+It reconnects automatically when you unplug/reconnect the controller or change
+back to PS mode. The icon may initially be under Windows' hidden-icons arrow.
 
-Fresh installs open in compact mode. Use **Diagnostics** or **Ctrl D** to expand the live controller view and measurements. Closing the window keeps the bridge in the tray; **Quit** stops it. Windows sign-in and automatic connection are separate settings.
+| Icon | Status |
+| --- | --- |
+| Green | Controller input is being forwarded |
+| Amber | Waiting for a PS-mode controller; PC mode also waits here |
+| Grey | Disabled |
+| Red | Connection problem; retrying automatically |
 
-In PC mode, **Start** automatically allows the bridge through HidHide and hides only the physical Raiju gamepad. **Stop** restores its previous visibility; a helper also restores it if the app crashes. Start the bridge before opening a game so it sees only the virtual DualSense. Existing manual HidHide rules are preserved.
+Disabling or quitting removes the virtual controller and leaves the physical
+Raiju available. The tray app hosts forwarding directly; no console helper runs.
 
-PC mode requires Windows 11 24H2+, a regular mouse, and no other Precision Touchpad. Optional precise 2,000 Hz polling uses more CPU and is **off by default**; enable it in Diagnostics and restart the bridge to apply it. Touchpad contacts and clicks become PlayStation input while cursor movement is suppressed. The original Windows touchpad preference is restored on Stop or app exit, with a watchdog for crashes. Synapse is not needed to run the bridge; existing onboard mappings still apply.
+**PC mode:** the app leaves native XInput alone, so games use Xbox prompts.
+Switch back to PS mode for PlayStation prompts; no app restart is needed.
+Steam can list both the physical Raiju and virtual DualSense while enabled.
 
-HidHide prevents games from also receiving the physical Xbox input, which can cause Xbox prompts or duplicate input. Rumble, adaptive-trigger feedback and motion forwarding are not implemented. Wired USB has been tested; wireless support is unverified.
+## One-time setup
 
-## Stick center and deadzone
+The native version is currently a locally built prototype. Older GitHub release
+downloads contain the [previous GPUI app](docs/legacy-gpui.md).
 
-In our resting captures, the Raiju's PC-mode XInput axes stayed exactly at `0` on a signed `-32768` to `32767` scale. The bridge maps that center to `128` on the DualSense's `0` to `255` scale. Both can represent neutral input: the signed range alone does not guarantee drift-free input, and the unsigned format does not inherently require a deadzone.
+From the built `prototypes/vhf-dualsense` folder, close the game and both bridge
+apps, then run in an elevated PowerShell:
 
-In a controlled menu comparison at `0.00` deadzone, steady virtual DualSense values of `128` moved the cursor down-right; changing them to `127` moved it up-left. With the bridge stopped, the same Raiju stayed still through XInput. This strongly supports a game neutral point between the two DualSense values, consistent with `127.5`, although the game's exact calculation is unverified. Simply shifting the bridge's center to `127` reverses the creep instead of fixing it.
+```powershell
+./install.ps1 -Action Install
+```
 
-If you encounter this, try `0.01` (1%) deadzone in the game. It stopped the observed creep in both bridge modes. The bridge adds no stick deadzone or response curve. A game deadzone ignores small movements near center; it adds no timed processing delay.
+This installs the virtual-controller source driver, trusts the package's public
+code-signing certificate, and registers the tray app at login for that user.
+Then open `package/raiju-tray.exe` once to start now.
 
-[GPL-3.0-or-later](LICENSE). Uses [VIIPER](https://github.com/Alia5/VIIPER) over localhost USB/IP. No firmware changes or cloud service.
+The current development installer requires WDK 26100's `DevCon`; a standalone
+public installer has not yet been packaged. Daily use needs only the installed
+driver and tray executable. No compiler or WDK runs in the background.
+
+Other users can use the same compiled package and public certificate. They
+do not need to generate their own certificate or receive a private signing key.
+Each PC must explicitly trust the prototype signer during installation.
+The installer does not disable Secure Boot, Memory Integrity, signature
+enforcement or anti-cheat, and does not enable Windows test-signing mode.
+
+For build requirements, signing, protocol details, updates and removal, see the
+[native driver and tray documentation](prototypes/vhf-dualsense/README.md).
+
+## Validation and limitations
+
+Physical controls and PlayStation prompts were confirmed in Destiny 2 with
+Steam Input disabled. Live tray tests cover input, feature handshakes, off/on,
+exit cleanup, restart persistence and duplicate launches. Switching PC mode
+back to PS mode was also confirmed on the physical controller.
+
+The tray uses the same controller translation as the working console prototype.
+Its runtime imports only Windows system DLLs. Rumble, adaptive-trigger feedback
+and motion forwarding are not implemented. Wireless operation and full physical
+sleep/resume validation remain unverified. A working driver and valid signature
+do not establish Bungie approval; see the detailed documentation.
+
+For tiny drift at Destiny's `0.00` deadzone, use **`0.01`**. The bridge adds no
+deadzone or response curve. Earlier controlled tests found opposite creep at
+constant DualSense axis values of 127 and 128, consistent with a neutral point
+between them. See the [stick-center measurements](docs/legacy-gpui.md#stick-center-and-deadzone).
+
+## Development
+
+The native sources are in `prototypes/vhf-dualsense`. On Windows:
+
+```powershell
+cargo test --locked --release --manifest-path prototypes/vhf-dualsense/client/Cargo.toml
+cargo clippy --locked --release --all-targets --manifest-path prototypes/vhf-dualsense/client/Cargo.toml -- -D warnings
+```
+
+The full local package, including its signed driver, is built with
+`prototypes/vhf-dualsense/build.ps1`. Quit the tray first. Build artifacts and
+local signing material are excluded from Git.
+
+The original GPUI app remains in `src/`; its [legacy instructions](docs/legacy-gpui.md)
+and tag-triggered release workflow are preserved.
+
+[GPL-3.0-or-later](LICENSE). No physical firmware changes or game hooks.
